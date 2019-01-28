@@ -9,7 +9,7 @@ namespace DatabaseSchemaReader.DataSchema
     /// Represents a constraint (of <see cref="ConstraintType"/> such as primary key, foreign key...) that is attached to <see cref="Columns"/> of a table with name <see cref="TableName"/>
     /// </summary>
     [Serializable]
-    public partial class DatabaseConstraint : NamedSchemaObject
+    public partial class DatabaseConstraint : NamedSchemaObject<DatabaseConstraint>
     {
         #region Fields
         //backing fields
@@ -156,6 +156,5 @@ namespace DatabaseSchemaReader.DataSchema
             return (Name ?? ConstraintType.ToString()) +
                 " on " + TableName;
         }
-
     }
 }

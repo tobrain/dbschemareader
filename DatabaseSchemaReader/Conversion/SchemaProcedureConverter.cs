@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using DatabaseSchemaReader.Conversion.KeyMaps;
 using DatabaseSchemaReader.DataSchema;
 using DatabaseSchemaReader.Filters;
@@ -113,24 +114,30 @@ namespace DatabaseSchemaReader.Conversion
         public IFilter StoredProcedureFilter { get; set; }
         public IFilter PackageFilter { get; set; }
 
-        public void UpdateArguments(DatabaseSchema databaseSchema, DataTable arguments)
+
+        public IList<DatabaseArgument> Arguments(DataTable arguments)
         {
-            if (arguments.Columns.Count == 0) return; //empty datatable
+            var result = new List<DatabaseArgument>();
+            if (arguments.Columns.Count == 0) return result; //empty datatable
 
             var argumentsKeyMap = new ArgumentsKeyMap(arguments);
+
+            var argumentGrouping =
+                arguments.Rows.OfType<DataRow>()
+                    .ToLookup(
+                        x =>
+                            (x[argumentsKeyMap.OwnerKey] ?? string.Empty) + "." +
+                            (x[argumentsKeyMap.SprocName] ?? string.Empty));
 
             bool hasPackage = !string.IsNullOrEmpty(argumentsKeyMap.PackageKey);
 
             //project the sprocs (which won't have packages) into a distinct view
             DataTable sprocTable;
-            using (DataView sprocNames = new DataView(arguments))
-            {
-                sprocNames.Sort = argumentsKeyMap.SprocName;
-                if (!hasPackage)
-                    sprocTable = sprocNames.ToTable(true, argumentsKeyMap.SprocName, argumentsKeyMap.OwnerKey); //distinct
-                else
-                    sprocTable = sprocNames.ToTable(true, argumentsKeyMap.SprocName, argumentsKeyMap.OwnerKey, argumentsKeyMap.PackageKey);
-            }
+            arguments.DefaultView.Sort = argumentsKeyMap.SprocName;
+            if (!hasPackage)
+                sprocTable = arguments.DefaultView.ToTable(true, argumentsKeyMap.SprocName, argumentsKeyMap.OwnerKey); //distinct
+            else
+                sprocTable = arguments.DefaultView.ToTable(true, argumentsKeyMap.SprocName, argumentsKeyMap.OwnerKey, argumentsKeyMap.PackageKey);
 
             var sprocFilter = StoredProcedureFilter;
             var packFilter = PackageFilter;
@@ -157,31 +164,84 @@ namespace DatabaseSchemaReader.Conversion
                     else if (packFilter != null && packFilter.Exclude(package)) continue;
                 }
 
-                using (DataView dv = new DataView(arguments))
+                var rows = argumentGrouping[owner + "." + name];
+                if (!string.IsNullOrEmpty(argumentsKeyMap.OrdinalKey))
+                    rows = rows.OrderBy(r => r[argumentsKeyMap.OrdinalKey]);
+                List<DatabaseArgument> args = StoredProcedureArguments(rows, argumentsKeyMap);
+
+                result.AddRange(args);
+            }
+            return result;
+        }
+
+        public void UpdateArguments(DatabaseSchema databaseSchema, DataTable arguments)
+        {
+            if (arguments.Columns.Count == 0) return; //empty datatable
+
+            var argumentsKeyMap = new ArgumentsKeyMap(arguments);
+
+            var argumentGrouping =
+                arguments.Rows.OfType<DataRow>()
+                    .ToLookup(
+                        x =>
+                            (x[argumentsKeyMap.OwnerKey] ?? string.Empty) + "." +
+                            (x[argumentsKeyMap.SprocName] ?? string.Empty));
+
+            bool hasPackage = !string.IsNullOrEmpty(argumentsKeyMap.PackageKey);
+
+            //project the sprocs (which won't have packages) into a distinct view
+            DataTable sprocTable;
+            arguments.DefaultView.Sort = argumentsKeyMap.SprocName;
+            if (!hasPackage)
+                sprocTable = arguments.DefaultView.ToTable(true, argumentsKeyMap.SprocName, argumentsKeyMap.OwnerKey); //distinct
+            else
+                sprocTable = arguments.DefaultView.ToTable(true, argumentsKeyMap.SprocName, argumentsKeyMap.OwnerKey, argumentsKeyMap.PackageKey);
+
+            var sprocFilter = StoredProcedureFilter;
+            var packFilter = PackageFilter;
+            //go thru all sprocs with arguments- if not in sproc list, add it
+            foreach (DataRow row in sprocTable.Rows)
+            {
+                string name = row[argumentsKeyMap.SprocName].ToString();
+                //a procedure without a name?
+                if (string.IsNullOrEmpty(name)) continue;
+                if (sprocFilter != null && sprocFilter.Exclude(name)) continue;
+
+                string owner = row[argumentsKeyMap.OwnerKey].ToString();
+                if (argumentsKeyMap.IsDb2)
                 {
-                    //match sproc name and schema
-                    dv.RowFilter = string.Format(CultureInfo.InvariantCulture, "[{0}] = '{1}' AND ISNULL([{2}],'') = '{3}'",
-                                                 argumentsKeyMap.SprocName, name, argumentsKeyMap.OwnerKey, owner);
-                    if (!string.IsNullOrEmpty(argumentsKeyMap.OrdinalKey))
-                        dv.Sort = argumentsKeyMap.OrdinalKey;
-                    List<DatabaseArgument> args = StoredProcedureArguments(dv);
-
-                    DatabaseStoredProcedure sproc = FindStoredProcedureOrFunction(databaseSchema, name, owner, package);
-
-                    if (sproc == null) //sproc in a package and not found before?
-                    {
-                        sproc = CreateProcedureOrFunction(databaseSchema, args);
-                        sproc.Name = name;
-                        sproc.SchemaOwner = owner;
-                        sproc.Package = package;
-                    }
-                    else
-                    {
-                        //clear any existing arguments before we add them
-                        sproc.Arguments.Clear();
-                    }
-                    sproc.Arguments.AddRange(args);
+                    //ignore db2 system sprocs
+                    if (IsDb2SystemSchema(owner)) continue;
                 }
+
+                string package = null; //for non-Oracle, package is always null
+                if (hasPackage)
+                {
+                    package = row[argumentsKeyMap.PackageKey].ToString();
+                    if (string.IsNullOrEmpty(package)) package = null; //so we can match easily
+                    else if (packFilter != null && packFilter.Exclude(package)) continue;
+                }
+
+                var rows = argumentGrouping[owner + "." + name];
+                if (!string.IsNullOrEmpty(argumentsKeyMap.OrdinalKey))
+                    rows = rows.OrderBy(r => r[argumentsKeyMap.OrdinalKey]);
+                List<DatabaseArgument> args = StoredProcedureArguments(rows, argumentsKeyMap);
+
+                DatabaseStoredProcedure sproc = FindStoredProcedureOrFunction(databaseSchema, name, owner, package);
+
+                if (sproc == null) //sproc in a package and not found before?
+                {
+                    sproc = CreateProcedureOrFunction(databaseSchema, args);
+                    sproc.Name = name;
+                    sproc.SchemaOwner = owner;
+                    sproc.Package = package;
+                }
+                else
+                {
+                    //clear any existing arguments before we add them
+                    sproc.Arguments.Clear();
+                }
+                sproc.Arguments.AddRange(args);
             }
         }
 
@@ -236,15 +296,11 @@ namespace DatabaseSchemaReader.Conversion
             return sproc;
         }
 
-        private static List<DatabaseArgument> StoredProcedureArguments(DataView dataView)
+        private static List<DatabaseArgument> StoredProcedureArguments(IEnumerable<DataRow> dataView, ArgumentsKeyMap argumentsKeyMap)
         {
-            DataTable arguments = dataView.Table;
             List<DatabaseArgument> list = new List<DatabaseArgument>();
 
-
-            var argumentsKeyMap = new ArgumentsKeyMap(arguments);
-
-            foreach (DataRowView row in dataView)
+            foreach (DataRow row in dataView)
             {
                 var argName = row[argumentsKeyMap.ParameterName].ToString();
                 //check if it's already there
@@ -294,12 +350,12 @@ namespace DatabaseSchemaReader.Conversion
             }
         }
 
-        private static void AddPackage(DataRowView row, string packageKey, DatabaseArgument argument)
+        private static void AddPackage(DataRow row, string packageKey, DatabaseArgument argument)
         {
             if (packageKey != null) argument.PackageName = row[packageKey].ToString();
         }
 
-        private static void AddInOut(DataRowView row, string inoutKey, DatabaseArgument argument)
+        private static void AddInOut(DataRow row, string inoutKey, DatabaseArgument argument)
         {
             if (inoutKey == null) return;
             string inout = row[inoutKey].ToString();

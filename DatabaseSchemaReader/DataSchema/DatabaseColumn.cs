@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Xml.Serialization;
 
 namespace DatabaseSchemaReader.DataSchema
 {
@@ -8,8 +10,11 @@ namespace DatabaseSchemaReader.DataSchema
     /// A column in the database
     /// </summary>
     [Serializable]
-    public partial class DatabaseColumn : NamedSchemaObject
+    public partial class DatabaseColumn : NamedSchemaObject<DatabaseColumn>
     {
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        private DatabaseColumnIdentity _identityDefinition;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DatabaseColumn"/> class.
         /// </summary>
@@ -48,7 +53,7 @@ namespace DatabaseSchemaReader.DataSchema
         /// <value>
         /// The names of the foreign key table.
         /// </value>
-        public IList<string> ForeignKeyTableNames { get; private set; }
+        public List<string> ForeignKeyTableNames { get; private set; }
 
         /// <summary>
         /// Gets or sets the length if this is string (VARCHAR) or character (CHAR) type data. In SQLServer, a length of -1 indicates VARCHAR(MAX).
@@ -115,39 +120,19 @@ namespace DatabaseSchemaReader.DataSchema
         public string TableName { get; set; }
 
         /// <summary>
-        /// Do not use. Initialize <see cref="IdentityDefinition"/> and access <see cref="DatabaseColumnIdentity.IdentitySeed"/>
-        /// </summary>
-        [Obsolete("Access via IdentityDefinition")]
-        public long IdentitySeed
-        {
-            get { return (IdentityDefinition == null) ? 1 : IdentityDefinition.IdentitySeed; }
-            set
-            {
-                if (IdentityDefinition == null) IdentityDefinition = new DatabaseColumnIdentity();
-                IdentityDefinition.IdentitySeed = value;
-            }
-        }
-
-        /// <summary>
-        /// Do not use. Initialize <see cref="IdentityDefinition"/> and access <see cref="DatabaseColumnIdentity.IdentityIncrement"/>
-        /// </summary>
-        [Obsolete("Access via IdentityDefinition")]
-        public long IdentityIncrement
-        {
-            get { return (IdentityDefinition == null) ? 1 : IdentityDefinition.IdentityIncrement; }
-            set
-            {
-                if (IdentityDefinition == null) IdentityDefinition = new DatabaseColumnIdentity();
-                IdentityDefinition.IdentityIncrement = value;
-            }
-        }
-
-        /// <summary>
         /// Gets or sets the identity definition (if this is an Identity column). 
         /// Null if this is not an identity column (<see cref="IsAutoNumber"/> is false), 
         /// or the database uses another method of autonumbering (<see cref="DefaultValue"/> or sequences).
         /// </summary>
-        public DatabaseColumnIdentity IdentityDefinition { get; set; }
+        public DatabaseColumnIdentity IdentityDefinition
+        {
+            get { return _identityDefinition; }
+            set
+            {
+                _identityDefinition = value;
+                if (_identityDefinition != null) IsAutoNumber = true;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the "computed" (or "virtual") definition.
@@ -189,12 +174,6 @@ namespace DatabaseSchemaReader.DataSchema
         public bool IsAutoNumber { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether this column is an identity column (or equivalent)
-        /// </summary>
-        [Obsolete("Use IsAutoNumber")]
-        public bool IsIdentity { get { return IsAutoNumber; } set { IsAutoNumber = value; } }
-
-        /// <summary>
         /// Gets or sets a value indicating whether this instance is indexed.
         /// </summary>
         /// <value>
@@ -232,6 +211,7 @@ namespace DatabaseSchemaReader.DataSchema
         /// <value>
         /// The table.
         /// </value>
+        [XmlIgnore]
         public DatabaseTable Table { get; set; }
 
         /// <summary>
@@ -240,6 +220,7 @@ namespace DatabaseSchemaReader.DataSchema
         /// <value>
         /// The database schema.
         /// </value>
+        [XmlIgnore]
         public DatabaseSchema DatabaseSchema { get; set; }
 
         /// <summary>
@@ -256,6 +237,7 @@ namespace DatabaseSchemaReader.DataSchema
         /// <value>
         /// The foreign key table.
         /// </value>
+        [XmlIgnore]
         public DatabaseTable ForeignKeyTable { get; set; }
 
         #endregion

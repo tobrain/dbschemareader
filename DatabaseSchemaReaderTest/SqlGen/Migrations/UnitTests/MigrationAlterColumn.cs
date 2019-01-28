@@ -1,16 +1,7 @@
-﻿using System;
+using System;
 using DatabaseSchemaReader.DataSchema;
 using DatabaseSchemaReader.SqlGen;
-#if !NUNIT
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-#else
-using NUnit.Framework;
-using TestClass = NUnit.Framework.TestFixtureAttribute;
-using TestMethod = NUnit.Framework.TestAttribute;
-using TestInitialize = NUnit.Framework.SetUpAttribute;
-using TestCleanup = NUnit.Framework.TearDownAttribute;
-using TestContext = System.Object;
-#endif
 
 namespace DatabaseSchemaReaderTest.SqlGen.Migrations.UnitTests
 {
@@ -198,7 +189,8 @@ namespace DatabaseSchemaReaderTest.SqlGen.Migrations.UnitTests
             var sql = migration.AlterColumn(table, column, null);
 
             //assert
-            Assert.IsTrue(sql.Contains("ALTER TABLE \"dbo\".\"Orders\" ALTER COLUMN \"NAME\" VARCHAR (40)"), "names should be quoted correctly");
+            Assert.IsTrue(sql.Contains("ALTER TABLE \"dbo\".\"Orders\" ALTER COLUMN \"NAME\" TYPE VARCHAR (40)"), "names should be quoted correctly");
+            Assert.IsTrue(sql.Contains("ALTER TABLE \"dbo\".\"Orders\" ALTER COLUMN \"NAME\" SET NOT NULL;"), "NULL should be handled correctly");
         }
     }
 }

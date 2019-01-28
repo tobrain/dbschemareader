@@ -1,12 +1,6 @@
-﻿using System;
+using System;
 using System.Data.Common;
-#if !NUNIT
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-#else
-using NUnit.Framework;
-using TestClass = NUnit.Framework.TestFixtureAttribute;
-using TestMethod = NUnit.Framework.TestAttribute;
-#endif
 
 namespace DatabaseSchemaReaderTest.IntegrationTests
 {
@@ -35,6 +29,12 @@ namespace DatabaseSchemaReaderTest.IntegrationTests
             {
                 Assert.Inconclusive("Cannot test for provider " + providerName);
             }
+            catch (System.Reflection.TargetInvocationException exception)
+            {
+                //The provider is not compatible with the version of Oracle client (32bit/64bit)
+                Assert.Inconclusive("Cannot access database for provider " + providerName +
+                    " message= " + exception.Message);
+            }
 
             try
             {
@@ -47,7 +47,8 @@ namespace DatabaseSchemaReaderTest.IntegrationTests
             }
             catch (DbException exception)
             {
-                Assert.Inconclusive("Cannot access database for provider " + providerName + " message= " + exception.Message);
+                Assert.Inconclusive("Cannot access database for provider " + providerName + " message= " +
+                                    exception.Message);
             }
             catch (Exception exception)
             {

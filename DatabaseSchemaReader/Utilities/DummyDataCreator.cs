@@ -40,8 +40,8 @@ namespace DatabaseSchemaReader.Utilities
                 return null;
             if (dataType.IsNumeric)
             {
-                if (precision == scale) return 0.1;
-                return 1;
+                if (precision != null && precision == scale) return 0.1;
+                return 0;
             }
             if (dataType.IsString)
             {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Xml.Serialization;
 
 namespace DatabaseSchemaReader.DataSchema
 {
@@ -8,7 +9,7 @@ namespace DatabaseSchemaReader.DataSchema
     /// Represents a stored procedure in the database.
     /// </summary>
     [Serializable]
-    public partial class DatabaseStoredProcedure : NamedSchemaObject
+    public partial class DatabaseStoredProcedure : NamedSchemaObject<DatabaseStoredProcedure>
     {
         #region Fields
         //backing fields
@@ -83,11 +84,12 @@ namespace DatabaseSchemaReader.DataSchema
         public List<DatabaseResultSet> ResultSets { get { return _resultSets; } }
 
         /// <summary>
-        /// Gets or sets the database schema.
+        /// Gets or sets the database schema. Used by SprocWriter to detect if devart or not.
         /// </summary>
         /// <value>
         /// The database schema.
         /// </value>
+        [XmlIgnore]
         public DatabaseSchema DatabaseSchema { get; set; }
 
         /// <summary>

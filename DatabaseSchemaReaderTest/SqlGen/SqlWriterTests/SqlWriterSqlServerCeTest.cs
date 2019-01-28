@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
@@ -7,17 +7,7 @@ using DatabaseSchemaReader;
 using DatabaseSchemaReader.DataSchema;
 using DatabaseSchemaReader.Utilities;
 using DatabaseSchemaReaderTest.IntegrationTests;
-#if !NUNIT
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-#else
-using NUnit.Framework;
-using TestClass = NUnit.Framework.TestFixtureAttribute;
-using TestMethod = NUnit.Framework.TestAttribute;
-using TestInitialize = NUnit.Framework.SetUpAttribute;
-using TestCleanup = NUnit.Framework.TearDownAttribute;
-using TestContext = System.Object;
-using TestCategory = NUnit.Framework.CategoryAttribute;
-#endif
 
 namespace DatabaseSchemaReaderTest.SqlGen.SqlWriterTests
 {
@@ -25,7 +15,6 @@ namespace DatabaseSchemaReaderTest.SqlGen.SqlWriterTests
     public class SqlWriterSqlServerCeTest
     {
         private const string ProviderName = "System.Data.SqlServerCe.4.0";
-        private const string FilePath = @"C:\Data\northwind.sdf";
         private string _connectionString;
         private DatabaseTable _categoriesTable;
         private readonly DbProviderFactory _factory;
@@ -47,11 +36,11 @@ namespace DatabaseSchemaReaderTest.SqlGen.SqlWriterTests
         {
             if (_categoriesTable != null) return _categoriesTable;
 
-            if (!File.Exists(FilePath))
+            if (!File.Exists(ConnectionStrings.SqlServerCeFilePath))
             {
-                Assert.Inconclusive("Cannot test SqlServerCe.4.0 as no database file " + FilePath);
+                Assert.Inconclusive("Cannot test SqlServerCe.4.0 as no database file " + ConnectionStrings.SqlServerCeFilePath);
             }
-            _connectionString = string.Format(CultureInfo.InvariantCulture, "DataSource=\"{0}\";", FilePath);
+            _connectionString = string.Format(CultureInfo.InvariantCulture, "DataSource=\"{0}\";", ConnectionStrings.SqlServerCeFilePath);
             ProviderChecker.Check(ProviderName, _connectionString);
 
             var dbReader = new DatabaseReader(_connectionString, ProviderName);

@@ -1,20 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using DatabaseSchemaReader.DataSchema;
-#if !NUNIT
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-#else
-using NUnit.Framework;
-using TestClass = NUnit.Framework.TestFixtureAttribute;
-using TestMethod = NUnit.Framework.TestAttribute;
-using TestInitialize = NUnit.Framework.SetUpAttribute;
-using TestCleanup = NUnit.Framework.TearDownAttribute;
-using TestContext = System.Object;
-#endif
 
 namespace DatabaseSchemaReaderTest.DataSchema
 {
@@ -50,6 +41,32 @@ namespace DatabaseSchemaReaderTest.DataSchema
             Assert.AreEqual(schema.Tables[0].Columns.Count, clone.Tables[0].Columns.Count);
         }
 
+
+        [TestMethod]
+        public void XmlSerializeTest()
+        {
+            var dbReader = TestHelper.GetNorthwindReader();
+            var schema = dbReader.ReadAll();
+
+            var f = new System.Xml.Serialization.XmlSerializer(schema.GetType());
+            using (var stm = new FileStream("schema.xml", FileMode.Create))
+            {
+                f.Serialize(stm, schema);
+            }
+
+            DatabaseSchema clone;
+            using (var stm = new FileStream("schema.xml", FileMode.Open))
+            {
+                clone = (DatabaseSchema)f.Deserialize(stm);
+            }
+
+            //the clone has lost some useful cross linking.
+
+            Assert.AreEqual(schema.DataTypes.Count, clone.DataTypes.Count);
+            Assert.AreEqual(schema.StoredProcedures.Count, clone.StoredProcedures.Count);
+            Assert.AreEqual(schema.Tables.Count, clone.Tables.Count);
+            Assert.AreEqual(schema.Tables[0].Columns.Count, clone.Tables[0].Columns.Count);
+        }
 
         [TestMethod]
         public void DataContractSerializeTest()

@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if !NETSTANDARD1_5
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
@@ -211,6 +212,8 @@ namespace DatabaseSchemaReader.Data
 
             foreach (var databaseColumn in _databaseTable.Columns)
             {
+                if (IsNotWriteableType(databaseColumn)) continue;
+
                 if (!IncludeIdentity && databaseColumn.IsAutoNumber) continue;
 
                 if (_nullColumns.Contains(databaseColumn.Name))
@@ -240,6 +243,8 @@ namespace DatabaseSchemaReader.Data
 
             foreach (var databaseColumn in _databaseTable.Columns)
             {
+                if (IsNotWriteableType(databaseColumn)) continue;
+
                 if (!IncludeIdentity && databaseColumn.IsAutoNumber) continue;
 
                 if (_nullColumns.Contains(databaseColumn.Name))
@@ -282,6 +287,7 @@ namespace DatabaseSchemaReader.Data
             var cols = new List<string>();
             foreach (var databaseColumn in _databaseTable.Columns)
             {
+                if (IsNotWriteableType(databaseColumn)) continue;
                 if (!IncludeIdentity && databaseColumn.IsAutoNumber) continue;
                 cols.Add(_sqlWriter.EscapedColumnName(databaseColumn.Name));
             }
@@ -289,5 +295,13 @@ namespace DatabaseSchemaReader.Data
             return cols.ToArray();
         }
 
+        private bool IsNotWriteableType(DatabaseColumn databaseColumn)
+        {
+            if (_sqlType == SqlType.SqlServer &&
+                databaseColumn.DbDataType.Equals("timestamp", StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }
     }
 }
+#endif

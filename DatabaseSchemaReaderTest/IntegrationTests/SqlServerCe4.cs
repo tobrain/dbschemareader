@@ -1,16 +1,6 @@
-﻿using System.IO;
+using System.IO;
 using DatabaseSchemaReader;
-#if !NUNIT
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-#else
-using NUnit.Framework;
-using TestClass = NUnit.Framework.TestFixtureAttribute;
-using TestMethod = NUnit.Framework.TestAttribute;
-using TestInitialize = NUnit.Framework.SetUpAttribute;
-using TestCleanup = NUnit.Framework.TearDownAttribute;
-using TestContext = System.Object;
-using TestCategory = NUnit.Framework.CategoryAttribute;
-#endif
 
 namespace DatabaseSchemaReaderTest.IntegrationTests
 {
@@ -23,17 +13,16 @@ namespace DatabaseSchemaReaderTest.IntegrationTests
         //MSDN is here: http://msdn.microsoft.com/en-us/library/ff929050%28v=SQL.10%29.aspx
 
         private const string ProviderName = "System.Data.SqlServerCe.4.0";
-        private const string FilePath = @"C:\Data\northwind.sdf";
 
         [TestMethod, TestCategory("SqlServerCe")]
         public void SqlServerCe4Test()
         {
-            if (!File.Exists(FilePath))
+            if (!File.Exists(ConnectionStrings.SqlServerCeFilePath))
             {
-                Assert.Inconclusive("SqlServerCe4 test requires database file " + FilePath);
+                Assert.Inconclusive("SqlServerCe4 test requires database file " + ConnectionStrings.SqlServerCeFilePath);
             }
 
-            const string connectionString = "Data Source=\"" + FilePath + "\"";
+            var connectionString = "Data Source=\"" + ConnectionStrings.SqlServerCeFilePath + "\"";
             ProviderChecker.Check(ProviderName, connectionString);
 
             var dbReader = new DatabaseReader(connectionString, ProviderName);

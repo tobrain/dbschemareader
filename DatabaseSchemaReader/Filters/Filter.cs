@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace DatabaseSchemaReader.Filters
 {
@@ -20,7 +22,6 @@ namespace DatabaseSchemaReader.Filters
             get { return _filterExclusions; }
         }
 
-
         /// <summary>
         /// Excludes the specified name.
         /// </summary>
@@ -28,9 +29,7 @@ namespace DatabaseSchemaReader.Filters
         /// <returns></returns>
         public virtual bool Exclude(string name)
         {
-            //could use linq for case insensitive
-            if (FilterExclusions.Contains(name)) return true;
-            return false;
+            return _filterExclusions.Any(filter => Regex.IsMatch(name, filter, RegexOptions.IgnoreCase));
         }
     }
 }
